@@ -1,0 +1,418 @@
+openapi: 3.0.3
+info:
+  title: Six Cities API
+  description: REST API for accommodation offers, reviews, favourites and user accounts.
+  version: 1.0.0
+servers:
+  - url: http://localhost:4000
+    description: Local development server
+tags:
+  - name: Offers
+  - name: Reviews
+  - name: Favourites
+  - name: Users
+paths:
+  /offers:
+    get:
+      tags: [Offers]
+      summary: Get accommodation offers
+      parameters:
+        - name: city
+          in: query
+          description: Filter offers by city
+          schema:
+            $ref: '#/components/schemas/City'
+        - name: limit
+          in: query
+          description: Maximum number of offers to return
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: List of offers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /offers/{offerId}:
+    parameters:
+      - $ref: '#/components/parameters/OfferId'
+    get:
+      tags: [Offers]
+      summary: Get an offer by ID
+      responses:
+        '200':
+          description: Offer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /offers/premium/{city}:
+    get:
+      tags: [Offers]
+      summary: Get premium offers in a city
+      parameters:
+        - name: city
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/City'
+      responses:
+        '200':
+          description: Premium offers in the selected city
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /offers/favorite:
+    get:
+      tags: [Favourites]
+      summary: Get the authenticated user's favourite offers
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Favourite offers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Offer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /offers/{offerId}/favorite:
+    parameters:
+      - $ref: '#/components/parameters/OfferId'
+    post:
+      tags: [Favourites]
+      summary: Add an offer to favourites
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Updated offer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Favourites]
+      summary: Remove an offer from favourites
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Updated offer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /offers/{offerId}/comments:
+    parameters:
+      - $ref: '#/components/parameters/OfferId'
+    get:
+      tags: [Reviews]
+      summary: Get reviews for an offer
+      responses:
+        '200':
+          description: Reviews for the offer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Review'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Reviews]
+      summary: Add a review to an offer
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewReview'
+      responses:
+        '201':
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/register:
+    post:
+      tags: [Users]
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUser'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email is already registered
+  /users/login:
+    get:
+      tags: [Users]
+      summary: Get the authenticated user's profile
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Users]
+      summary: Authenticate a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginUser'
+      responses:
+        '200':
+          description: User authenticated; session cookie is set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid email or password
+    delete:
+      tags: [Users]
+      summary: End the current user's session
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Session ended
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+  parameters:
+    OfferId:
+      name: offerId
+      in: path
+      required: true
+      description: Offer identifier
+      schema:
+        type: string
+        pattern: '^[a-fA-F0-9]{24}$'
+  responses:
+    BadRequest:
+      description: Invalid request data
+    Unauthorized:
+      description: Authentication is required
+    NotFound:
+      description: Resource not found
+  schemas:
+    City:
+      type: string
+      enum: [Paris, Cologne, Brussels, Amsterdam, Hamburg, Dusseldorf]
+    OfferType:
+      type: string
+      enum: [apartment, house, room, hotel]
+    Goods:
+      type: string
+      enum:
+        - Breakfast
+        - Air conditioning
+        - Laptop friendly workspace
+        - Baby seat
+        - Washer
+        - Towels
+        - Fridge
+    UserType:
+      type: string
+      enum: [regular, pro]
+    User:
+      type: object
+      required: [id, name, email, avatarUrl, type]
+      properties:
+        id:
+          type: string
+          readOnly: true
+          description: User identifier
+        name:
+          type: string
+          example: Alice Martin
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        avatarUrl:
+          type: string
+          format: uri-reference
+          example: /img/alice.jpg
+        type:
+          $ref: '#/components/schemas/UserType'
+    RegisterUser:
+      type: object
+      required: [name, email, password, type]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 15
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        type:
+          $ref: '#/components/schemas/UserType'
+    LoginUser:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+    Offer:
+      type: object
+      required: [id, title, description, publicationDate, city, previewImage, images, isPremium, isFavorite, type, rooms, guests, price, goods, author, rating]
+      properties:
+        id:
+          type: string
+          readOnly: true
+          description: Offer identifier
+        title:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1024
+        publicationDate:
+          type: string
+          format: date-time
+        city:
+          $ref: '#/components/schemas/City'
+        previewImage:
+          type: string
+          format: uri-reference
+        images:
+          type: array
+          maxItems: 6
+          items:
+            type: string
+            format: uri-reference
+        isPremium:
+          type: boolean
+        isFavorite:
+          type: boolean
+        type:
+          $ref: '#/components/schemas/OfferType'
+        rooms:
+          type: integer
+          minimum: 1
+          maximum: 8
+        guests:
+          type: integer
+          minimum: 1
+          maximum: 10
+        price:
+          type: integer
+          minimum: 100
+          maximum: 100000
+        goods:
+          type: array
+          items:
+            $ref: '#/components/schemas/Goods'
+        author:
+          $ref: '#/components/schemas/User'
+        rating:
+          type: number
+          minimum: 1
+          maximum: 5
+    Review:
+      type: object
+      required: [id, publicationDate, comment, rating, author]
+      properties:
+        id:
+          type: string
+          readOnly: true
+        publicationDate:
+          type: string
+          format: date-time
+        comment:
+          type: string
+          minLength: 50
+          maxLength: 300
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        author:
+          $ref: '#/components/schemas/User'
+    NewReview:
+      type: object
+      required: [comment, rating]
+      properties:
+        comment:
+          type: string
+          minLength: 50
+          maxLength: 300
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
